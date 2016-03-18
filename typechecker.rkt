@@ -10,6 +10,7 @@ nempty?
 nfirst, and nrest
 
 |#
+(print-only-errors #t)
 
 (define-type Expr
   [num (n number?)]
@@ -196,23 +197,42 @@ nfirst, and nrest
                                       [else (error 'type-of "non-number in list")]))
 
 ;needs work
-#|
+
+(define-type Tenv
+  [mtenv]
+  [tenv (i symbol?) (t Type?) (r Tenv?)])
+
+; lookup-type : symbol? Tenv? -> Type?
+; raises and error if the symbol is not associated with a type
+(define (lookup-type id env)
+  (type-case Tenv env
+    [mtenv () (error 'lookup-type "Type-less symbol")]
+    [tenv (i t r)
+          (if (symbol=? id i)
+              t
+              (lookup-type id r))]))
+
+(test/exn (lookup-type 'x (mtenv)) "Type-less")
+(test (lookup-type 'x (tenv 'x (t-num) (mtenv))) (t-num))
+(test (lookup-type 'x (tenv 'y (t-bool) (tenv 'x (t-num) (mtenv)))) (t-num))
+(test/exn (lookup-type 'x (tenv 'y (t-bool) (tenv 'z (t-num) (mtenv)))) "Type-less")
+
 ; type-of : Expr -> Type
-(define (type-of e)
+(define (type-of e env)
   (type-case Expr e
     [num (n) (t-num)]
-    [id (v) ()]
+    [id (v) (lookup-type v env)]
     [bool (b) (t-bool)]
-    [bin-num-op (op lhs rhs) (if (equal? (type)))]
+    [bin-num-op (op lhs rhs) (error 'type-of "not implemented")]
     [iszero (e) (t-bool)]
     ;make sure 'then and 'else have the same return type and then return that type
     [bif (test then else) (if (and (equal? (type-of test) t-bool) (equal? (type-of then) (type-of else)))
                               (type-of then)
-                              (error 'type-of "..."))]
-    [with (bound-id bound-body body) ...]
-    [fun (arg-id arg-type result-type body) ...]
-    [app (fun-expr arg-expr) ...]
-    [nempty ...]
+                              (error 'type-of "not implemented"))]
+    [with (bound-id bound-body body) (error 'type-of "not implemented")]
+    [fun (arg-id arg-type result-type body) (error 'type-of "not implemented")]
+    [app (fun-expr arg-expr) (error 'type-of "not implemented")]
+    [nempty () (error 'type-of "not implemented")]
     [ncons (first rest) (list-check first rest)]
     [nfirst (e) (type-of e)]
     [nrest (e) (type-of e)]
@@ -309,10 +329,5 @@ nfirst, and nrest
 
 
 
-
-
-
-
-|#
 
 
