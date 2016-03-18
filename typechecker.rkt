@@ -26,6 +26,25 @@
   [t-bool]
   [t-nlist]
   [t-fun (arg Type?) (result Type?)])
+
+(define-type Binding
+  [binding (name symbol?) (named-expr Expr?)])
+
+;op-table
+; : (listof (list/c symbol? (number? number? . -> . number?)))
+(define op-table
+  (list
+   (list '+ +)
+   (list '- -)
+   (list '* *)))
+   
+  
+;(lookup-op op) → (or/c procedure? false/c)
+;  op : symbol?
+(define (look-up op)
+  (if (boolean? (assoc op op-table))
+      #f
+      (second (assoc op op-table))))
  
 ; parse : s-expression -> Expr
 (define (parse sexp)
@@ -33,7 +52,6 @@
     [(number? sexp) (num sexp)]
     [(or (equal? sexp 'true) (equal? sexp 'false)) (bool sexp)]
     [(symbol? sexp) (if(or (equal? sexp '+)
-                           (equal? sexp '/)
                            (equal? sexp '*)
                            (equal? sexp '-)
                            (equal? sexp 'with)
@@ -45,6 +63,7 @@
                     (id sexp))]
     [(and (list? sexp) (not (empty? sexp)))
      (cond
+       [(and (procedure? (look-up (first sexp))) (not (= (length (rest sexp)) 2))) (error 'parse "Illegal syntax")]
        [(and (not (number? (first sexp))) (> (length (rest sexp)) 1))
         (case (first sexp)
           [(+) (bin-num-op (look-up '+)
@@ -56,28 +75,25 @@
           [(*) (bin-num-op (look-up '*)
                            (parse (second sexp))
                            (parse (third sexp)))]
-          [(/) (bin-num-op (look-up '/)
-                           (parse (second sexp))
-                           (parse (third sexp)))]
           [(with) (if (and (list? (second sexp))
-                           (list? (first (second sexp)))
-                           (not(empty? (second sexp)))
-                           (= (length sexp) 3)
-                           (andmap (lambda (x) (= (length x) 2)) (second sexp))
-                           (andmap (lambda (x) (symbol? (first x))) (second sexp))
+                           (= (length (rest sexp)) 2)
+                           ;(list? (first (second sexp)))
+                           ;(not(empty? (second sexp)))
+                           (= (length (second sexp)) 2)
+                           ;(andmap (lambda (x) (= (length x) 2)) (second sexp))
+                           ;(andmap (lambda (x) (symbol? (first x))) (second sexp))
+                           (symbol? (first (second sexp)))
                            ;(not (ormap (lambda (x) (symbol? (second x))) (second sexp)))
-                           (andmap (lambda (x) (= (count (lambda (y) (symbol=? (first x)
-                                                                               (first y)
-                                                                               )) (second sexp)) 1)) (second sexp))
+                           ;(andmap (lambda (x) (= (count (lambda (y) (symbol=? (first x)
+                                                                               ;(first y)
+                                                                               ;)) (second sexp)) 1)) (second sexp))
                            ) 
-                      (with (map (lambda (x) (binding (first x) (parse (second x)))) (second sexp))
-                            (parse (third sexp)))
+                      (with (first (second sexp)) (parse (second (second sexp))) (parse (third sexp)))
                       (error 'parse "Illegal syntax")
                       )]
           [(fun) (if (and (list? (second sexp))
                           (andmap (lambda (x) (symbol? x)) (second sexp))
                           (andmap (lambda (x) (not (or (equal? x '+)
-                                                       (equal? x '/)
                                                        (equal? x '*)
                                                        (equal? x '-)
                                                        (equal? x 'with)
@@ -94,35 +110,93 @@
                           (parse (third sexp))
                           (parse (fourth sexp)))
                      (error 'parse "Illegal syntax"))]
-          [else (if (> (length sexp) 1)
+          [else (if (= (length sexp) 2)
                     (app (parse (first sexp))
-                         (map parse (rest sexp)))
+                         (parse (second sexp)))
                     (error 'parse "Illegal syntax"))]
           
           )]
        [(and (symbol? (first sexp)) (= (length (rest sexp)) 1))
         (if (equal? (first sexp) 'iszero)
-            (iszero (parse (rest sexp)))
-            (if? (equal? (first sexp) 'isnempty?)
-                 (isnempty? )))
+            (iszero (parse (second sexp)))
+            (if (equal? (first sexp) 'isnempty)
+                 (isnempty (parse (second sexp)))
+                 (error 'parse "Illegal syntax")))]
        [(number? (first sexp))
-        (if (> (length (rest sexp)) 1)
+        (if (> (length sexp) 1)
             (ncons (nfirst (parse (first sexp))) (nrest (parse (rest sexp))))
             (ncons (nfirst (parse (first sexp))) (nrest (nempty))))]
+       [else (error 'parse "Illegal syntax")]
        )]
+    
 [(and (list? sexp) (empty? sexp)) (nempty)]
 [else (error 'parse "Illegal syntax")]))
- 
-; type-of : Expr -> Type
-(define (type-of e)
-  (error 'type-of "not implemented"))
 
+;literals
+(test (parse '5) (num 5))
+(test/exn (parse "hello") "Illegal syntax")
+
+;binary operators
+(test (parse '(+ 1 2)) (bin-num-op + (num 1) (num 2)))
+(test (parse '(- 1 2)) (bin-num-op - (num 1) (num 2)))
+(test (parse '(* 1 2)) (bin-num-op * (num 1) (num 2)))
+(test/exn (parse '(+ 1 2 3)) "Illegal syntax")
+(test/exn (parse '(+ 1)) "Illegal syntax")
+
+;id
+(test (parse 'x) (id 'x))
+
+;bif
+(test (parse '(bif 0 x 1)) (bif (num 0) (id 'x) (num 1)))
+(test/exn (parse '(bif 0 x)) "Illegal syntax")
+(test/exn (parse '(bif 0 x 1 2)) "Illegal syntax")
+
+
+;with
+(test (parse '(with [x 1] x)) (with 'x (num 1) (id 'x)))
+
+;fun
+(test (parse '(fun (x y) (+ x y))) (fun '(x y) (bin-num-op + (id 'x) (id 'y))))
+(test/exn (parse '(fun (x y) )) "Illegal syntax")
+(test/exn (parse '(fun (x y) (+ x y) (- x y))) "Illegal syntax")
+(test/exn (parse '(fun x (+ x x))) "Illegal syntax")
+(test/exn (parse '(fun (x "hello") (+ x x))) "Illegal syntax")
+(test/exn (parse '(fun (x bif) (+ x x))) "Illegal syntax")
+(test/exn (parse '(fun (x x) 10)) "Illegal syntax")
+
+
+;app
+(test (parse '((fun (x) (+ x x)) 6)) (app (fun '(x) (bin-num-op + (id 'x) (id 'x))) (list (num 6))))
+
+;nempty
+(test (parse '()) (nempty))
+
+;bif
+(test (parse '(bif (iszero a) 3 4)) (bif (iszero (id 'a)) (num 3) (num 4)))
+(test/exn (parse '(bif (iszero a) 3)) "Illegal syntax")
+(test/exn (parse '(bif (iszero a) 3 5 6)) "Illegal syntax")
+
+;iszero
+(test (parse '(iszero 4)) (iszero (num 4)))
+(test/exn (parse '(iszero 4 5)) "Illegal syntax")
+(test/exn (parse '(iszero)) "Illegal syntax")
+
+;ncons
+(test (parse (list 1 2 3 4)) (ncons
+                              (nfirst (num 1))
+                              (nrest (ncons (nfirst (num 2)) (nrest (ncons (nfirst (num 3)) (nrest (ncons (nfirst (num 4)) (nrest (nempty))))))))))
+
+
+
+
+#|
+; type-of : Expr -> Type
 (define (type-of e)
   (type-case Expr e
     [num (n) (t-num)]
     [id (v) ...]
     [bool (b) (t-bool)]
-    [bin-num-op (op lhs rhs) (if (equal? (type))]
+    [bin-num-op (op lhs rhs) (if (equal? (type)))]
     [iszero (e) (t-bool)]
     ;make sure 'then and 'else have the same return type and then return that type
     [bif (test then else) (if (and (equal? (type-of test) t-bool) (equal? (type-of then) (type-of else)))
@@ -135,4 +209,4 @@
     [ncons (first rest) ...]
     [nfirst (e) ...]
     [nrest (e) ...]
-    [isnempty (e) ...])
+    [isnempty (e) ...])|#
