@@ -27,9 +27,6 @@
   [t-nlist]
   [t-fun (arg Type?) (result Type?)])
 
-(define-type Binding
-  [binding (name symbol?) (named-expr Expr?)])
-
 ;op-table
 ; : (listof (list/c symbol? (number? number? . -> . number?)))
 (define op-table
@@ -45,6 +42,20 @@
   (if (boolean? (assoc op op-table))
       #f
       (second (assoc op op-table))))
+
+(define (type-lookup t) (if (symbol? t)
+                            (cond
+                              [(equal? 't-num t) (t-num)]
+                              [(equal? 't-bool t) (t-bool)]
+                              [(equal? 't-nlist t) (t-nlist)]
+                              [else (error 'parse "not a type")])
+                            (if (and (list? t)
+                                     (= (length t) 3)
+                                     (equal? (first t) 't-fun))
+                                (t-fun (type-lookup (second t) (type-lookup (third t))))
+                                (error 'parse "not a type"))))
+                            
+
  
 ; parse : s-expression -> Expr
 (define (parse sexp)
@@ -92,18 +103,9 @@
                       (error 'parse "Illegal syntax")
                       )]
           [(fun) (if (and (list? (second sexp))
-                          (andmap (lambda (x) (symbol? x)) (second sexp))
-                          (andmap (lambda (x) (not (or (equal? x '+)
-                                                       (equal? x '*)
-                                                       (equal? x '-)
-                                                       (equal? x 'with)
-                                                       (equal? x 'fun)
-                                                       (equal? x 'bif))
-                                                   )) (second sexp))
-                          (andmap (lambda (x) (= (count (lambda (y) (symbol=? x y)) (second sexp)) 1)) (second sexp))
-                          (= (length (rest sexp)) 2))
-                     (fun (second sexp)
-                          (parse (third sexp)))
+                          (= (length (second sexp)) 3)
+                          (= (length (rest sexp)) 4))
+                     (fun (first (second sexp)) (third (second sexp)) (fourth sexp) (parse (fifth sexp)))
                      (error 'parse "Illegal syntax"))]
           [(bif) (if (and (= (length (rest sexp)) 3))
                      (bif (parse (second sexp))
