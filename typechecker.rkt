@@ -4,12 +4,26 @@
 ; CS 330 -- Winter 2016
 
 #|
-nempty
-ncons
-nempty?
-nfirst, and nrest
+type judgements
 
+nempty
+  lon -> t-nlist
+  '() -> (nempty)
+ncons
+  lon -> t-nlist
+  '(1 2) -> (ncons 1 (ncons 2 (nempty)))
+isnempty
+  t-nlist -> t-bool
+  (isnempty ()) -> true
+nfirst
+  t-nlist -> t-num
+  (nfirst (1 2)) -> 1
+nrest
+  t-nlist -> t-nlist
+  (nrest (1 2 3)) -> (ncons (2) (ncons (3) (nempty))) 
 |#
+
+
 (print-only-errors #t)
 
 (define-type Expr
@@ -245,6 +259,10 @@ nfirst, and nrest
     [isnempty (e) (t-bool)]))
 
 (define (run exp) (type-of (parse exp) (mtenv)))
+
+
+;* Does type-of allow through runtime errors?
+(test (run '(nfirst ()) (t-num)))
 
 
 ;Expression: num
