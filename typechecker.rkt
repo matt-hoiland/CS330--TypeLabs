@@ -294,21 +294,31 @@ nfirst, and nrest
 
 ;Expression: id
 ; * Is there an example of type-of on a correct id expression?
+(test (run '(with (x 3) (+ x x))) (t-num))
 ; * Is there a test case for a unbound identifier?
-
+(test/exn (run 'x) "")
+  
 ;Expression: with
 ; * Is there an example of type-of on a correct with expression?
+(test (run '(with (x 3) (+ 2 x))) (t-num))
 ; * Is there a test case for misuse of the identifier in the body?
+(test/exn (run '(with (x 3) (+ 3 y))) "")
 
 ;Expression: fun
 ; * Is there an example of type-of on a correct fun expression?
+(test (run '(fun (x : t-num) : t-bool (iszero x))) (t-fun t-num t-bool))
 ; * Is there a test case for misuse of the formal parameter in the body?
+(test/exn (run '(fun (x : t-num) : t-bool (iszero y))) "") 
 ; * Is there a test case for a return-type mismatch error?
+(test/exn (run '(fun (x : t-num) : t-bool (+ x 3))) "")
 
 ;Expression: app
 ; * Is there an example of type-of on a correct app expression?
+(test (run '((fun (x : t-num) : t-bool (iszero x)) 4)) (t-fun t-num t-bool)) 
 ; * Is there a test case for an operator that isn't a function?
+(test (run '(/ 4)) (t-fun t-num t-bool)) 
 ; * Is there a test case for a wrong argument type?
+(test (run '((fun (x : t-num) : t-bool (iszero x)) true)) (t-fun t-num t-bool))
 
 ;Expression: nempty
 ; * Is there an example of type-of on a correct nempty expression?
@@ -316,12 +326,17 @@ nfirst, and nrest
 
 ;Expression: ncons
 ; * Is there an example of type-of on a correct ncons expression?
+(test (run '(1 2 3 4)) (t-nlist))
 ; * Is there a test case for the first parameter not being a number?
+(test/exn (run '(true 1 2 3)) "")
 ; * Is there a test case for the second parameter not being an nlist?
+(test/exn (run '(1 true 5 3)) "")  
 
 ;Expression: nempty?
-; * Is there an example of type-of on a correct nempty? expression?
+; * Is there an example of type-of on a correct isnempty expression?
+(test (run '(isnempty (1 2))) (t-bool))
 ; * Is there a test case for the input not being an nlist?
+(test/exn (run '(isnempty 2)) "")
 
 ;Expression: nfirst
 ; * Is there an example of type-of on a correct nfirst expression?
