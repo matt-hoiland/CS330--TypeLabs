@@ -280,13 +280,17 @@ nfirst, and nrest
 
 ;Expression: iszero
 ; * Is there an example of type-of on a correct iszero expression?
-(test (run '()))
+(test (run '(iszero 5)) (t-bool))
 ; * Is there a test case for the input not being a number?
+(test/exn (run '(iszero true)) "") 
 
 ;Expression: bif
 ; * Is there an example of type-of on a correct bif expression?
+(test (run '(bif (iszero 2) 3 4)) (t-num))
 ; * Is there a test case for a non-boolean condition error?
+(test/exn (run '(bif (+ 1 1) 3 4)) "")
 ; * Is there a test case for a mismatch error?
+(test/exn (run '(bif (iszero 0) 3 false)) "")
 
 ;Expression: id
 ; * Is there an example of type-of on a correct id expression?
@@ -308,6 +312,7 @@ nfirst, and nrest
 
 ;Expression: nempty
 ; * Is there an example of type-of on a correct nempty expression?
+(test (run '()) (t-nlist))
 
 ;Expression: ncons
 ; * Is there an example of type-of on a correct ncons expression?
@@ -320,12 +325,15 @@ nfirst, and nrest
 
 ;Expression: nfirst
 ; * Is there an example of type-of on a correct nfirst expression?
+(test (run '(nfirst (1 2 3 4))) (t-num))
 ; * Is there a test case for the input not being an nlist?
-
+(test/exn (run '(nfirst 2)) "")
+  
 ;Expression: nrest
 ; * Is there an example of type-of on a correct nrest expression?
+(test (run '(nrest (1 2 3 4))) (t-nlist))
 ; * Is there a test case for the input not being an nlist?
-
+(test/exn (run '(nrest 2)) "")
 
 
 
