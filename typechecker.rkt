@@ -25,6 +25,7 @@ nrest
 
 
 (print-only-errors #t)
+(halt-on-errors #t)
 
 (define-type Expr
   [num (n number?)]
@@ -94,8 +95,8 @@ nrest
                            (equal? sexp 'bif)
                            (equal? sexp 'nempty)
                            (equal? sexp 'iszero))
-                    (error 'parse (string-append "not an id: " (symbol->string sexp)))
-                    (id sexp))]
+                       (error 'parse (string-append "not an id: " (symbol->string sexp)))
+                       (id sexp))]
     [(and (list? sexp) (not (empty? sexp)))
      (cond
        [(and (procedure? (look-up (first sexp))) (not (= (length (rest sexp)) 2))) (error 'parse "Illegal syntax")]
@@ -120,8 +121,8 @@ nrest
                            (symbol? (first (second sexp)))
                            ;(not (ormap (lambda (x) (symbol? (second x))) (second sexp)))
                            ;(andmap (lambda (x) (= (count (lambda (y) (symbol=? (first x)
-                                                                               ;(first y)
-                                                                               ;)) (second sexp)) 1)) (second sexp))
+                           ;(first y)
+                           ;)) (second sexp)) 1)) (second sexp))
                            ) 
                       (with (first (second sexp)) (parse (second (second sexp))) (parse (third sexp)))
                       (error 'parse "Illegal syntax")
@@ -136,11 +137,7 @@ nrest
                           (parse (third sexp))
                           (parse (fourth sexp)))
                      (error 'parse "Illegal syntax"))]
-          [else (if (= (length sexp) 2)
-                    (app (parse (first sexp))
-                         (parse (second sexp)))
-                    (error 'parse "Illegal syntax"))]
-          
+          [else (error 'parse "Illegal syntax")]        
           )]
        [(and (symbol? (first sexp)) (= (length (rest sexp)) 1))
         (cond
@@ -148,16 +145,21 @@ nrest
           [(equal? (first sexp) 'isnempty) (isnempty (parse (second sexp)))]
           [(equal? (first sexp) 'nfirst) (nfirst (parse (second sexp)))]
           [(equal? (first sexp) 'nrest) (nrest (parse (second sexp)))]
-          [else (error 'parse "Illegal syntax")])]
+          [else 
+                 (app (parse (first sexp))
+                      (parse (second sexp)))]
+          )];[else (error 'parse "Illegal syntax")])]
        [(number? (first sexp))
         (if (> (length sexp) 1)
             (ncons (parse (first sexp)) (parse (rest sexp)))
             (ncons (parse (first sexp)) (nempty)))]
+       [(= (length sexp) 2)
+                 (app (parse (first sexp))
+                      (parse (second sexp)))]
        [else (error 'parse "Illegal syntax")]
        )]
-    
-[(and (list? sexp) (empty? sexp)) (nempty)]
-[else (error 'parse "Illegal syntax")]))
+    [(and (list? sexp) (empty? sexp)) (nempty)]
+    [else (error 'parse "Illegal syntax")]))
 
 ;literals
 (test (parse '5) (num 5))
@@ -242,27 +244,51 @@ nrest
                         (define tr (type-of r env))]
                   (if (and (equal? tl (t-num)) (equal? tr (t-num)))
                       (t-num)
-                      (error 'type-of "Binop: one of the parameters was not a number")))]
-    [iszero (e) (t-bool)]
+                      (error 'type-of "binop: one of the parameters was not a number")))]
+    [iszero (e) (if (t-num? (type-of e env))
+                    (t-bool)
+                    (error 'type-of "iszero: argument was not of type number"))]
     ;make sure 'then and 'else have the same return type and then return that type
-    [bif (test then else) (if (and (equal? (type-of test) t-bool) (equal? (type-of then) (type-of else)))
-                              (type-of then)
-                              (error 'type-of "not implemented"))]
+    [bif (test then else)
+         (if (and
+              (t-bool? (type-of test env))
+              (equal? (type-of then env) (type-of else env)))
+             (type-of then env)
+             (error 'type-of "bif: argument was not of type bool"))]
     [with (bound-id bound-body body)
           (type-of body (tenv bound-id (type-of bound-body env) env))]
-    [fun (arg-id arg-type result-type body) (error 'type-of "not implemented")]
-    [app (fun-expr arg-expr) (error 'type-of "not implemented")]
-    [nempty () (error 'type-of "not implemented")]
-    [ncons (first rest) (list-check first rest)]
-    [nfirst (e) (type-of e)]
-    [nrest (e) (type-of e)]
-    [isnempty (e) (t-bool)]))
+    [fun (arg-id arg-type result-type body)
+         (if (equal? result-type (type-of body (tenv arg-id arg-type env)))
+           (t-fun arg-type result-type)
+           (error 'type-of "fun: return type mismatch"))]
+    [app (fun-expr arg-expr)
+         (local [(define fun-type (type-of fun-expr env))]
+           (if (equal? (t-fun-arg fun-type) (type-of arg-expr env))
+               (t-fun-result fun-type)
+               (error 'type-of "app: wrong arg type")))]
+    [nempty () (t-nlist)]
+    [ncons (first rest) 
+         (if (and (equal? (t-num) (type-of first env)) (equal? (t-nlist) (type-of rest env)))
+             (t-nlist)
+             (error 'type-of "ncons: not a list"))]
+    [nfirst (e)
+            (if (t-nlist? (type-of e env))
+                (t-num)
+                (error 'type-of "nfirst: not a list"))]
+    [nrest (e)
+           (if (t-nlist? (type-of e env))
+               (t-nlist)
+               (error 'type-of "isnempty: not a list"))]
+    [isnempty (e)
+              (if (t-nlist? (type-of e env))
+                  (t-bool)
+                  (error 'type-of "isnempty: not a list"))]))
 
 (define (run exp) (type-of (parse exp) (mtenv)))
 
 
 ;* Does type-of allow through runtime errors?
-(test (run '(nfirst ()) (t-num)))
+(test (run '(nfirst ())) (t-num))
 
 
 ;Expression: num
@@ -282,67 +308,67 @@ nrest
 ; * Is there an example of type-of on a correct + expression?
 (test (run '(+ 4 5)) (t-num))
 ; * Is there a test case for the lhs not being a number?
-(test/exn (run '(+ true 5)) "")
+(test/exn (run '(+ true 5)) "not a number")
 ; * Is there a test case for the rhs not being a number?
-(test/exn (run '(+ 4 false)) "")
+(test/exn (run '(+ 4 false)) "not a number")
 
 ;Expression: -
 ; * Is there an example of type-of on a correct - expression?
 (test (run '(- 4 5)) (t-num))
 ; * Is there a test case for the lhs not being a number?
-(test/exn (run '(- true 5)) "")
+(test/exn (run '(- true 5)) "not a number")
 ; * Is there a test case for the rhs not being a number?
-(test/exn (run '(- 4 false)) "")
+(test/exn (run '(- 4 false)) "not a number")
 
 ;Expression: *
 ; * Is there an example of type-of on a correct * expression?
 (test (run '(* 4 5)) (t-num))
 ; * Is there a test case for the lhs not being a number?
-(test/exn (run '(* true 5)) "")
+(test/exn (run '(* true 5)) "not a number")
 ; * Is there a test case for the rhs not being a number?
-(test/exn (run '(* 4 false)) "")
+(test/exn (run '(* 4 false)) "not a number")
 
 ;Expression: iszero
 ; * Is there an example of type-of on a correct iszero expression?
 (test (run '(iszero 5)) (t-bool))
 ; * Is there a test case for the input not being a number?
-(test/exn (run '(iszero true)) "Invalid syntax") 
+(test/exn (run '(iszero true)) "not of type number") 
 
 ;Expression: bif
 ; * Is there an example of type-of on a correct bif expression?
 (test (run '(bif (iszero 2) 3 4)) (t-num))
 ; * Is there a test case for a non-boolean condition error?
-(test/exn (run '(bif (+ 1 1) 3 4)) "")
+(test/exn (run '(bif (+ 1 1) 3 4)) "not of type bool")
 ; * Is there a test case for a mismatch error?
-(test/exn (run '(bif (iszero 0) 3 false)) "")
+(test/exn (run '(bif (iszero 0) 3 false)) "not of type")
 
 ;Expression: id
 ; * Is there an example of type-of on a correct id expression?
 (test (run '(with (x 3) (+ x x))) (t-num))
 ; * Is there a test case for a unbound identifier?
-(test/exn (run 'x) "")
+(test/exn (run 'x) "Type-less")
   
 ;Expression: with
 ; * Is there an example of type-of on a correct with expression?
 (test (run '(with (x 3) (+ 2 x))) (t-num))
 ; * Is there a test case for misuse of the identifier in the body?
-(test/exn (run '(with (x 3) (+ 3 y))) "")
+(test/exn (run '(with (x 3) (+ 3 y))) "Type-less")
 
 ;Expression: fun
 ; * Is there an example of type-of on a correct fun expression?
-(test (run '(fun (x : t-num) : t-bool (iszero x))) (t-fun t-num t-bool))
+(test (run '(fun (x : t-num) : t-bool (iszero x))) (t-fun (t-num) (t-bool)))
 ; * Is there a test case for misuse of the formal parameter in the body?
-(test/exn (run '(fun (x : t-num) : t-bool (iszero y))) "") 
+(test/exn (run '(fun (x : t-num) : t-bool (bif x true false))) "argument was not of type") 
 ; * Is there a test case for a return-type mismatch error?
-(test/exn (run '(fun (x : t-num) : t-bool (+ x 3))) "")
+(test/exn (run '(fun (x : t-num) : t-bool (+ x 3))) "return type mismatch")
 
 ;Expression: app
 ; * Is there an example of type-of on a correct app expression?
-(test (run '((fun (x : t-num) : t-bool (iszero x)) 4)) (t-fun t-num t-bool)) 
+(test (run '((fun (x : t-num) : t-bool (iszero x)) 4)) (t-bool)) 
 ; * Is there a test case for an operator that isn't a function?
-(test (run '(/ 4)) (t-fun t-num t-bool)) 
+(test/exn (run '(/ 4)) "Type-less") 
 ; * Is there a test case for a wrong argument type?
-(test (run '((fun (x : t-num) : t-bool (iszero x)) true)) (t-fun t-num t-bool))
+(test/exn (run '((fun (x : t-num) : t-bool (iszero x)) true)) "wrong arg type")
 
 ;Expression: nempty
 ; * Is there an example of type-of on a correct nempty expression?
@@ -352,24 +378,24 @@ nrest
 ; * Is there an example of type-of on a correct ncons expression?
 (test (run '(1 2 3 4)) (t-nlist))
 ; * Is there a test case for the first parameter not being a number?
-(test/exn (run '(true 1 2 3)) "")
+(test/exn (run '(true 1 2 3)) "Illegal syntax")
 ; * Is there a test case for the second parameter not being an nlist?
-(test/exn (run '(1 true 5 3)) "")  
+(test/exn (run '(1 true 5 3)) "Illegal syntax")  
 
 ;Expression: nempty?
 ; * Is there an example of type-of on a correct isnempty expression?
 (test (run '(isnempty (1 2))) (t-bool))
 ; * Is there a test case for the input not being an nlist?
-(test/exn (run '(isnempty 2)) "")
+(test/exn (run '(isnempty 2)) "not a list")
 
 ;Expression: nfirst
 ; * Is there an example of type-of on a correct nfirst expression?
 (test (run '(nfirst (1 2 3 4))) (t-num))
 ; * Is there a test case for the input not being an nlist?
-(test/exn (run '(nfirst 2)) "")
+(test/exn (run '(nfirst 2)) "not a list")
   
 ;Expression: nrest
 ; * Is there an example of type-of on a correct nrest expression?
 (test (run '(nrest (1 2 3 4))) (t-nlist))
 ; * Is there a test case for the input not being an nlist?
-(test/exn (run '(nrest 2)) "")
+(test/exn (run '(nrest 2)) "not a list")
