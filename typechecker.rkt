@@ -177,7 +177,8 @@
                               (nfirst (num 1))
                               (nrest (ncons (nfirst (num 2)) (nrest (ncons (nfirst (num 3)) (nrest (ncons (nfirst (num 4)) (nrest (nempty))))))))))
 
-
+;fun
+(test (parse '(fun (x : t-num) : (t-fun t-num t-bool) (+ x 3))) (fun 'x (t-num) (t-fun (t-num) (t-bool)) (bin-num-op + (id 'x) (num 3))))
 
 ;just an idea, prob doesnt work
 (define (list-check first rest) (type-case Expr first
