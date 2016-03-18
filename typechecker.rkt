@@ -155,18 +155,7 @@
 ;with
 (test (parse '(with [x 1] x)) (with 'x (num 1) (id 'x)))
 
-;fun
-(test (parse '(fun (x y) (+ x y))) (fun '(x y) (bin-num-op + (id 'x) (id 'y))))
-(test/exn (parse '(fun (x y) )) "Illegal syntax")
-(test/exn (parse '(fun (x y) (+ x y) (- x y))) "Illegal syntax")
-(test/exn (parse '(fun x (+ x x))) "Illegal syntax")
-(test/exn (parse '(fun (x "hello") (+ x x))) "Illegal syntax")
-(test/exn (parse '(fun (x bif) (+ x x))) "Illegal syntax")
-(test/exn (parse '(fun (x x) 10)) "Illegal syntax")
-
-
-;app
-(test (parse '((fun (x) (+ x x)) 6)) (app (fun '(x) (bin-num-op + (id 'x) (id 'x))) (list (num 6))))
+;fun and app not done
 
 ;nempty
 (test (parse '()) (nempty))
