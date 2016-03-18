@@ -52,7 +52,7 @@
                             (if (and (list? t)
                                      (= (length t) 3)
                                      (equal? (first t) 't-fun))
-                                (t-fun (type-lookup (second t) (type-lookup (third t))))
+                                (t-fun (type-lookup (second t)) (type-lookup (third t)))
                                 (error 'parse "not a type"))))
                             
 
@@ -105,7 +105,7 @@
           [(fun) (if (and (list? (second sexp))
                           (= (length (second sexp)) 3)
                           (= (length (rest sexp)) 4))
-                     (fun (first (second sexp)) (third (second sexp)) (fourth sexp) (parse (fifth sexp)))
+                     (fun (first (second sexp)) (type-lookup (third (second sexp))) (type-lookup (fourth sexp)) (parse (fifth sexp)))
                      (error 'parse "Illegal syntax"))]
           [(bif) (if (and (= (length (rest sexp)) 3))
                      (bif (parse (second sexp))
@@ -207,4 +207,20 @@
     [ncons (first rest) (list-check first rest)]
     [nfirst (e) (type-of e)]
     [nrest (e) (type-of e)]
-    [isnempty (e) (t-bool)])|#
+    [isnempty (e) (t-bool)])
+
+
+
+
+()
+
+
+
+
+
+
+
+
+|#
+
+
