@@ -177,13 +177,19 @@
 
 
 
+(define (list-check first rest) (type-case Expr first
+                                      [num (n) (if (equal? rest (nempty))
+                                                   #t
+                                                   (list-check (ncons-first rest) (ncons-rest rest)))]
+                                      [else (error 'type-of "non-number in list")]))
 
+;needs work
 #|
 ; type-of : Expr -> Type
 (define (type-of e)
   (type-case Expr e
     [num (n) (t-num)]
-    [id (v) ...]
+    [id (v) ()]
     [bool (b) (t-bool)]
     [bin-num-op (op lhs rhs) (if (equal? (type)))]
     [iszero (e) (t-bool)]
@@ -195,7 +201,7 @@
     [fun (arg-id arg-type result-type body) ...]
     [app (fun-expr arg-expr) ...]
     [nempty ...]
-    [ncons (first rest) ...]
-    [nfirst (e) ...]
-    [nrest (e) ...]
-    [isnempty (e) ...])|#
+    [ncons (first rest) (list-check first rest)]
+    [nfirst (e) (type-of e)]
+    [nrest (e) (type-of e)]
+    [isnempty (e) (t-bool)])|#
