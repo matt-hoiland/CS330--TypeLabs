@@ -57,7 +57,7 @@
                            (equal? sexp 'with)
                            (equal? sexp 'fun)
                            (equal? sexp 'bif)
-                           (equal? sexp 'nempty?)
+                           (equal? sexp 'nempty)
                            (equal? sexp 'iszero))
                     (error 'parse (string-append "not an id: " (symbol->string sexp)))
                     (id sexp))]
@@ -177,6 +177,7 @@
 
 
 
+;just an idea, prob doesnt work
 (define (list-check first rest) (type-case Expr first
                                       [num (n) (if (equal? rest (nempty))
                                                    #t
