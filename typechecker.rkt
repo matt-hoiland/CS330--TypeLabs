@@ -223,22 +223,28 @@ nfirst, and nrest
     [num (n) (t-num)]
     [id (v) (lookup-type v env)]
     [bool (b) (t-bool)]
-    [bin-num-op (op lhs rhs) (error 'type-of "not implemented")]
+    [bin-num-op (o l r)
+                (local [(define tl (type-of l env))
+                        (define tr (type-of r env))]
+                  (if (and (equal? tl (t-num)) (equal? tr (t-num)))
+                      (t-num)
+                      (error 'type-of "Binop: one of the parameters was not a number")))]
     [iszero (e) (t-bool)]
     ;make sure 'then and 'else have the same return type and then return that type
     [bif (test then else) (if (and (equal? (type-of test) t-bool) (equal? (type-of then) (type-of else)))
                               (type-of then)
                               (error 'type-of "not implemented"))]
-    [with (bound-id bound-body body) (error 'type-of "not implemented")]
+    [with (bound-id bound-body body)
+          (type-of body (tenv bound-id (type-of bound-body env) env))]
     [fun (arg-id arg-type result-type body) (error 'type-of "not implemented")]
     [app (fun-expr arg-expr) (error 'type-of "not implemented")]
     [nempty () (error 'type-of "not implemented")]
     [ncons (first rest) (list-check first rest)]
     [nfirst (e) (type-of e)]
     [nrest (e) (type-of e)]
-    [isnempty (e) (t-bool)])
+    [isnempty (e) (t-bool)]))
 
-(define (run exp) (type-of (parse exp)))
+(define (run exp) (type-of (parse exp) (mtenv)))
 
 
 ;Expression: num
@@ -282,7 +288,7 @@ nfirst, and nrest
 ; * Is there an example of type-of on a correct iszero expression?
 (test (run '(iszero 5)) (t-bool))
 ; * Is there a test case for the input not being a number?
-(test/exn (run '(iszero true)) "") 
+(test/exn (run '(iszero true)) "Invalid syntax") 
 
 ;Expression: bif
 ; * Is there an example of type-of on a correct bif expression?
@@ -334,8 +340,3 @@ nfirst, and nrest
 (test (run '(nrest (1 2 3 4))) (t-nlist))
 ; * Is there a test case for the input not being an nlist?
 (test/exn (run '(nrest 2)) "")
-
-
-
-
-
