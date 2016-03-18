@@ -3,6 +3,14 @@
 ; Authors: Matthew Hoiland, Isaac Hartung
 ; CS 330 -- Winter 2016
 
+#|
+nempty
+ncons
+nempty?
+nfirst, and nrest
+
+|#
+
 (define-type Expr
   [num (n number?)]
   [id (v symbol?)]
@@ -61,7 +69,8 @@
 (define (parse sexp)
   (cond
     [(number? sexp) (num sexp)]
-    [(or (equal? sexp 'true) (equal? sexp 'false)) (bool sexp)]
+    [(equal? sexp 'true) (bool #t)]
+    [(equal? sexp 'false) (bool #f)]
     [(symbol? sexp) (if(or (equal? sexp '+)
                            (equal? sexp '*)
                            (equal? sexp '-)
@@ -119,15 +128,16 @@
           
           )]
        [(and (symbol? (first sexp)) (= (length (rest sexp)) 1))
-        (if (equal? (first sexp) 'iszero)
-            (iszero (parse (second sexp)))
-            (if (equal? (first sexp) 'isnempty)
-                 (isnempty (parse (second sexp)))
-                 (error 'parse "Illegal syntax")))]
+        (cond
+          [(equal? (first sexp) 'iszero) (iszero (parse (second sexp)))]
+          [(equal? (first sexp) 'isnempty) (isnempty (parse (second sexp)))]
+          [(equal? (first sexp) 'nfirst) (nfirst (parse (second sexp)))]
+          [(equal? (first sexp) 'nrest) (nrest (parse (second sexp)))]
+          [else (error 'parse "Illegal syntax")])]
        [(number? (first sexp))
         (if (> (length sexp) 1)
-            (ncons (nfirst (parse (first sexp))) (nrest (parse (rest sexp))))
-            (ncons (nfirst (parse (first sexp))) (nrest (nempty))))]
+            (ncons (parse (first sexp)) (parse (rest sexp)))
+            (ncons (parse (first sexp)) (nempty)))]
        [else (error 'parse "Illegal syntax")]
        )]
     
@@ -173,9 +183,7 @@
 (test/exn (parse '(iszero)) "Illegal syntax")
 
 ;ncons
-(test (parse (list 1 2 3 4)) (ncons
-                              (nfirst (num 1))
-                              (nrest (ncons (nfirst (num 2)) (nrest (ncons (nfirst (num 3)) (nrest (ncons (nfirst (num 4)) (nrest (nempty))))))))))
+(test (parse (list 1 2 3 4)) (ncons (num 1) (ncons (num 2) (ncons (num 3) (ncons (num 4) (nempty))))))
 
 ;fun
 (test (parse '(fun (x : t-num) : (t-fun t-num t-bool) (+ x 3))) (fun 'x (t-num) (t-fun (t-num) (t-bool)) (bin-num-op + (id 'x) (num 3))))
@@ -210,10 +218,93 @@
     [nrest (e) (type-of e)]
     [isnempty (e) (t-bool)])
 
+(define (run exp) (type-of (parse exp)))
 
 
+;Expression: num
+; * Is there an example of type-of on a correct num expression?
+(test (run 5) (t-num))
 
-()
+;Expression: true
+; * Is there an example of type-of on a correct true expression?
+(test (run 'true) (t-bool))
+
+;Expression: false
+; * Is there an example of type-of on a correct false expression?
+(test (run 'false) (t-bool))
+
+
+;Expression: +
+; * Is there an example of type-of on a correct + expression?
+(test (run '(+ 4 5)) (t-num))
+; * Is there a test case for the lhs not being a number?
+(test/exn (run '(+ true 5)) "")
+; * Is there a test case for the rhs not being a number?
+(test/exn (run '(+ 4 false)) "")
+
+;Expression: -
+; * Is there an example of type-of on a correct - expression?
+(test (run '(- 4 5)) (t-num))
+; * Is there a test case for the lhs not being a number?
+(test/exn (run '(- true 5)) "")
+; * Is there a test case for the rhs not being a number?
+(test/exn (run '(- 4 false)) "")
+
+;Expression: *
+; * Is there an example of type-of on a correct * expression?
+(test (run '(* 4 5)) (t-num))
+; * Is there a test case for the lhs not being a number?
+(test/exn (run '(* true 5)) "")
+; * Is there a test case for the rhs not being a number?
+(test/exn (run '(* 4 false)) "")
+
+;Expression: iszero
+; * Is there an example of type-of on a correct iszero expression?
+(test (run '()))
+; * Is there a test case for the input not being a number?
+
+;Expression: bif
+; * Is there an example of type-of on a correct bif expression?
+; * Is there a test case for a non-boolean condition error?
+; * Is there a test case for a mismatch error?
+
+;Expression: id
+; * Is there an example of type-of on a correct id expression?
+; * Is there a test case for a unbound identifier?
+
+;Expression: with
+; * Is there an example of type-of on a correct with expression?
+; * Is there a test case for misuse of the identifier in the body?
+
+;Expression: fun
+; * Is there an example of type-of on a correct fun expression?
+; * Is there a test case for misuse of the formal parameter in the body?
+; * Is there a test case for a return-type mismatch error?
+
+;Expression: app
+; * Is there an example of type-of on a correct app expression?
+; * Is there a test case for an operator that isn't a function?
+; * Is there a test case for a wrong argument type?
+
+;Expression: nempty
+; * Is there an example of type-of on a correct nempty expression?
+
+;Expression: ncons
+; * Is there an example of type-of on a correct ncons expression?
+; * Is there a test case for the first parameter not being a number?
+; * Is there a test case for the second parameter not being an nlist?
+
+;Expression: nempty?
+; * Is there an example of type-of on a correct nempty? expression?
+; * Is there a test case for the input not being an nlist?
+
+;Expression: nfirst
+; * Is there an example of type-of on a correct nfirst expression?
+; * Is there a test case for the input not being an nlist?
+
+;Expression: nrest
+; * Is there an example of type-of on a correct nrest expression?
+; * Is there a test case for the input not being an nlist?
 
 
 
